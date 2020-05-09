@@ -46,19 +46,19 @@ int main() {
         num++;
     }
     num=0;
+    memset(buffer, '\0', TAM);
     printf("\nIngrese el contraste y brillo\n");
     printf("ejemplo: 1,2>");
     if (fgets(buffer, TAM - 1, stdin) == 0) {
         printf("Interrupción\n");
         exit (-1);
     }
-    memset(buffer, '\0', TAM);
     token = strtok(buffer, ident);
     while (token != NULL) {
         switch(num) {
-            case 0: kk= atoi(token);
+            case 0: kk= (int) atoi(token);
                 break;
-            case 1: l= atoi(token);
+            case 1: l= (int) atoi(token);
                 break;
             default:
                 break;
@@ -73,24 +73,27 @@ int main() {
 
     sbmp_image imgOld = {0};
 
-    if (sbmp_load_bmp(path1, &imgOld) == SBMP_OK) {
-        printf("Se cargo con exito");
+    if (sbmp_load_bmp(path1, &imgOld) != SBMP_OK) {
+        exit(-1);
     }
 
 ///AHACER COMO EL EJEMPLO VER QUE ERROR OBTENGO Y HACER EXIT
     sbmp_image imgNew = {0};
     int32_t check = sbmp_initialize_bmp(&imgNew, (uint32_t) height,(uint32_t) width);
+    if (SBMP_OK != check) {
+        perror("No se pudo crear la imagen ");
+        exit(-1);
+    }
+
     int centro1= (int)height/2;
     int centro2=(int)width/2;
 
-    if (SBMP_OK != check) {
-        exit(-1);
-    }
     //Corregir la matriz de kernel que tiene mal valores cuando es impar y pan la ultima liena hace mal, corregir tambien cuando le doy 4000 y 6000 osea los valores maximos
     //PORQUE LE hacia -1 al ancho y alto?? dejar anotado
     //cambiar porque tarda tanto y anotar eso en el informe, porque lo cambie
     ///la linea del mar con conincide con lo que esta fuera del circulo
     //kernel lo modifico como el profe del teorico con una varible de entorno
+    //hacer el otra version pero paralelizando con openpm
     for (int i = 0; i < imgNew.info.image_height - 1; ++i) {
         for (int j = 0; j < imgNew.info.image_width - 1; ++j) {
             if (i <= imgNew.info.image_height - (SIZE_K - 1)) {
@@ -141,8 +144,11 @@ fila=0;
         }
     }
 
-    sbmp_save_bmp("/home/cristian/Imágenes/testeo.bmp", &imgNew);
-
+    int32_t check2= sbmp_save_bmp("/home/cristian/Imágenes/testeo.bmp", &imgNew);
+    if (SBMP_OK != check2) {
+        perror("No se puedo guardar la imagen");
+        exit(-1);
+    }
     return 0;
 }
 
