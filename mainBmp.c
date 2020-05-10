@@ -87,6 +87,7 @@ int main() {
         exit(-1);
     }
 //De esta forma tarda 7:39 minutos
+
     int centro1= (int)height/2;
     int centro2=(int)width/2;
 
