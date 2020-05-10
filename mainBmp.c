@@ -3,7 +3,7 @@
 #include "simple_bmp.h"
 #include <math.h>
 #define TAM 120
-#define SIZE_K 42
+
 void kernel_setup(uint16_t **kern, int16_t ksize);
 
 char path1[] = "/home/cristian/Documentos/TP2/base.bmp";
@@ -11,6 +11,7 @@ char path2[] = "/home/cristian/Imágenes/copia.bmp";
 uint16_t sumatoria=0;
 
 int main() {
+    int16_t SIZE_K=0;
     char buffer[TAM];
     int fila=0;
     uint32_t height=0, width=0;//0 valor por defecto
@@ -47,8 +48,8 @@ int main() {
     }
     num=0;
     memset(buffer, '\0', TAM);
-    printf("\nIngrese el contraste y brillo\n");
-    printf("ejemplo: 1,2>");
+    printf("\nIngrese el contraste, brillo y tamaño de la matriz kernel deseada\n");
+    printf("ejemplo: 1,2,42>");
     if (fgets(buffer, TAM - 1, stdin) == 0) {
         printf("Interrupción\n");
         exit (-1);
@@ -60,15 +61,17 @@ int main() {
                 break;
             case 1: l= (int) atoi(token);
                 break;
+            case 2: SIZE_K= (int16_t) atoi(token);
+                break;
             default:
                 break;
         }
         token = strtok(NULL, ident);
         num++;
     }
-    uint16_t **kernel = calloc( SIZE_K, sizeof(int *));
+    uint16_t **kernel = calloc((unsigned long) SIZE_K, sizeof(int *));
     for (int k = 0; k < SIZE_K; k++)
-        kernel[k] = calloc(SIZE_K, sizeof(uint16_t));
+        kernel[k] = calloc((unsigned long) SIZE_K, sizeof(uint16_t));
     kernel_setup(kernel, SIZE_K);
 
     sbmp_image imgOld = {0};
@@ -76,23 +79,20 @@ int main() {
     if (sbmp_load_bmp(path1, &imgOld) != SBMP_OK) {
         exit(-1);
     }
-
-///AHACER COMO EL EJEMPLO VER QUE ERROR OBTENGO Y HACER EXIT
+    
     sbmp_image imgNew = {0};
     int32_t check = sbmp_initialize_bmp(&imgNew, (uint32_t) height,(uint32_t) width);
     if (SBMP_OK != check) {
         perror("No se pudo crear la imagen ");
         exit(-1);
     }
-
+//De esta forma tarda 7:39 minutos
     int centro1= (int)height/2;
     int centro2=(int)width/2;
 
     //Corregir la matriz de kernel que tiene mal valores cuando es impar y pan la ultima liena hace mal, corregir tambien cuando le doy 4000 y 6000 osea los valores maximos
     //PORQUE LE hacia -1 al ancho y alto?? dejar anotado
     //cambiar porque tarda tanto y anotar eso en el informe, porque lo cambie
-    ///la linea del mar con conincide con lo que esta fuera del circulo
-    //kernel lo modifico como el profe del teorico con una varible de entorno
     //hacer el otra version pero paralelizando con openpm
     for (int i = 0; i < imgNew.info.image_height - 1; ++i) {
         for (int j = 0; j < imgNew.info.image_width - 1; ++j) {
