@@ -86,8 +86,7 @@ int main() {
         perror("No se pudo crear la imagen ");
         exit(-1);
     }
-//De esta forma tarda 7:39 minutos
-
+//De esta forma tarda 6:20 minutos, porque solo multiplico a la matriz por el kernel si el pixen no esta dentro del radio
     int centro1= (int)height/2;
     int centro2=(int)width/2;
 
@@ -97,7 +96,23 @@ int main() {
     //hacer el otra version pero paralelizando con openpm
     for (int i = 0; i < imgNew.info.image_height - 1; ++i) {
         for (int j = 0; j < imgNew.info.image_width - 1; ++j) {
-            if (i <= imgNew.info.image_height - (SIZE_K - 1)) {
+            if((i<=centro1*2 && j<=centro2*2) && (pow(( i - centro1), 2) + pow((j - centro2), 2) <= pow(radio, 2))){
+                red= (uint32_t) (imgOld.data[i][j].red * kk + l);
+                blue= (uint32_t) (imgOld.data[i][j].blue * kk + l);
+                green= (uint32_t) (imgOld.data[i][j].green * kk + l);
+                if(blue>255){
+                    blue=255;
+                }
+                if(red>255){
+                    red=255;
+                }
+                if(green>255){
+                    green=255;
+                }
+                imgNew.data[i][j] = (sbmp_raw_data) {(u_int8_t) blue,(u_int8_t) green,(u_int8_t) red};
+            }
+            else{
+            if (i <= imgNew.info.image_height - (SIZE_K - 1)) {//ESTE IF Creo que no deberoa encerradr todo
                 for (int a = i; a < SIZE_K + i; ++a) {
                     if (j <= imgNew.info.image_width - (SIZE_K - 1)) {//posicion total-(pos kernel-1)
                         for (int b = j; b < j + SIZE_K; ++b) {
@@ -117,30 +132,15 @@ int main() {
                 }
 fila=0;
 ///////////////////ESTO LO PUEDO PONEREN UNA FUNCIÒN APARTE??
-                if((i<=centro1*2 && j<=centro2*2) && (pow(( i - centro1), 2) + pow((j - centro2), 2) <= pow(radio, 2))){
-                    red= (uint32_t) (imgOld.data[i][j].red * kk + l);
-                    blue= (uint32_t) (imgOld.data[i][j].blue * kk + l);
-                    green= (uint32_t) (imgOld.data[i][j].green * kk + l);
-                    if(blue>255){
-                        blue=255;
-                    }
-                    if(red>255){
-                        red=255;
-                    }
-                    if(green>255){
-                        green=255;
-                    }
-                    imgNew.data[i][j] = (sbmp_raw_data) {(u_int8_t) blue,(u_int8_t) green,(u_int8_t) red};
-                }
-                else {
+
                     blue=blue/sumatoria;
                     green=green/sumatoria;
                     red=red/sumatoria;
-                    imgNew.data[i][j] = (sbmp_raw_data) {(u_int8_t) blue,(u_int8_t) green,(u_int8_t) red};}
+                    imgNew.data[i][j] = (sbmp_raw_data) {(u_int8_t) blue,(u_int8_t) green,(u_int8_t) red};
                 blue=0;
                 red=0;
                 green=0;
-            }
+            }}
 
         }
     }
