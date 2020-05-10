@@ -19,7 +19,7 @@ int main() {
     uint32_t blue=0;
     uint32_t green=0;
     uint32_t red=0;
-    uint32_t auxb,auxg,auxr;
+   // uint32_t auxb,auxg,auxr;
     uint8_t valorker;
     u_int32_t radio=0;
     int kk=1,l=0,num=0;
@@ -86,7 +86,7 @@ int main() {
         perror("No se pudo crear la imagen ");
         exit(-1);
     }
-//De esta forma tarda 6:20 minutos, porque solo multiplico a la matriz por el kernel si el pixen no esta dentro del radio
+//De esta forma tarda 5:24 uso menos variables para los calculos, entonces debo accader a menos posiciones de momoria
     int centro1= (int)height/2;
     int centro2=(int)width/2;
 
@@ -117,26 +117,18 @@ int main() {
                     if (j <= imgNew.info.image_width - (SIZE_K - 1)) {//posicion total-(pos kernel-1)
                         for (int b = j; b < j + SIZE_K; ++b) {
                             valorker= (uint8_t) kernel[fila][columna];
-                            auxb= (uint32_t) (imgOld.data[a][b].blue * valorker);
-                            blue= (uint32_t) (blue+auxb);
-                            auxg= (uint32_t) (imgOld.data[a][b].green * valorker);
-                            green= (uint32_t) (green+auxg);
-                            auxr= (uint32_t) (imgOld.data[a][b].red * valorker);
-                            red=(uint32_t) (red+auxr);
-                            columna++;
+                            blue=  (blue+(uint32_t)(imgOld.data[a][b].blue * valorker));
+                            green= (green+(uint32_t) (imgOld.data[a][b].green * valorker));
+                            red= (red+(uint32_t)(imgOld.data[a][b].red * valorker));
+                            ++columna;
                         }
 
                         columna=0;
                     }
-                    fila++;
+                    ++fila;
                 }
 fila=0;
-///////////////////ESTO LO PUEDO PONEREN UNA FUNCIÒN APARTE??
-
-                    blue=blue/sumatoria;
-                    green=green/sumatoria;
-                    red=red/sumatoria;
-                    imgNew.data[i][j] = (sbmp_raw_data) {(u_int8_t) blue,(u_int8_t) green,(u_int8_t) red};
+                imgNew.data[i][j] = (sbmp_raw_data) {(u_int8_t) (blue/sumatoria),(u_int8_t) (green/sumatoria),(u_int8_t) (red/sumatoria)};
                 blue=0;
                 red=0;
                 green=0;
