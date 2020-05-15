@@ -5,26 +5,22 @@
 #define TAM 120
 
 void kernel_setup(uint16_t **kern, int16_t ksize);
-
+uint64_t rdtsc ();
 char path1[] = "/home/cristian/Documentos/TP2/base.bmp";
-char path2[] = "/home/cristian/Imágenes/copia.bmp";
+
 uint16_t sumatoria=0;
 
 int main() {
     int16_t SIZE_K=0;
     char buffer[TAM];
-    int fila=0;
-    uint32_t height=0, width=0;//0 valor por defecto
-    int columna=0;
-    uint32_t blue=0;
-    uint32_t green=0;
-    uint32_t red=0;
-   // uint32_t auxb,auxg,auxr;
-    uint8_t valorker;
-    u_int32_t radio=0;
-    int kk=1,l=0,num=0;
     char *token;
     const char ident[]=",";
+    int kk=1,l=0,num=0;
+    uint32_t height=0, width=0;//0 valor por defecto
+    uint32_t blue=0,green=0,red=0;
+    uint8_t valorker;
+    u_int32_t radio=0;
+
     printf("Ingrese la altura,ancho y radio para la imagen de salida:\n");
     printf("ejemplo: 500,1000,600>");
     if (fgets(buffer, TAM - 1, stdin) == 0) {
@@ -69,6 +65,7 @@ int main() {
         token = strtok(NULL, ident);
         num++;
     }
+    rdtsc ();
     uint16_t **kernel = calloc((unsigned long) SIZE_K, sizeof(int *));
     for (int k = 0; k < SIZE_K; k++)
         kernel[k] = calloc((unsigned long) SIZE_K, sizeof(uint16_t));
@@ -86,14 +83,13 @@ int main() {
         perror("No se pudo crear la imagen ");
         exit(-1);
     }
-//De esta forma tarda 5:24 uso menos variables para los calculos, entonces debo accader a menos posiciones de momoria
+//De esta forma tarda 2:57 al corregir un error y al usar una variable menos,ya no incremento dos variables ni seteo en 0 solo hago un calculo para buscar el
+//valor de la matriz del kernel
     int centro1= (int)height/2;
     int centro2=(int)width/2;
 
     //Corregir la matriz de kernel que tiene mal valores cuando es impar y pan la ultima liena hace mal, corregir tambien cuando le doy 4000 y 6000 osea los valores maximos
-    //PORQUE LE hacia -1 al ancho y alto?? dejar anotado
-    //cambiar porque tarda tanto y anotar eso en el informe, porque lo cambie
-    //hacer el otra version pero paralelizando con openpm
+    //falta la parte de assembler
     for (int i = 0; i < imgNew.info.image_height - 1; ++i) {
         for (int j = 0; j < imgNew.info.image_width - 1; ++j) {
             if((i<=centro1*2 && j<=centro2*2) && (pow(( i - centro1), 2) + pow((j - centro2), 2) <= pow(radio, 2))){
@@ -112,22 +108,17 @@ int main() {
                 imgNew.data[i][j] = (sbmp_raw_data) {(u_int8_t) blue,(u_int8_t) green,(u_int8_t) red};
             }
             else{
-            if (i <= imgNew.info.image_height - (SIZE_K - 1)) {//ESTE IF Creo que no deberoa encerradr todo
+            if (i <= imgNew.info.image_height - (SIZE_K)) {
                 for (int a = i; a < SIZE_K + i; ++a) {
-                    if (j <= imgNew.info.image_width - (SIZE_K - 1)) {//posicion total-(pos kernel-1)
+                    if (j <= imgNew.info.image_width - (SIZE_K)) {
                         for (int b = j; b < j + SIZE_K; ++b) {
-                            valorker= (uint8_t) kernel[fila][columna];
+                            valorker= (uint8_t) kernel[a-i][b-j];
                             blue=  (blue+(uint32_t)(imgOld.data[a][b].blue * valorker));
                             green= (green+(uint32_t) (imgOld.data[a][b].green * valorker));
                             red= (red+(uint32_t)(imgOld.data[a][b].red * valorker));
-                            ++columna;
                         }
-
-                        columna=0;
                     }
-                    ++fila;
                 }
-fila=0;
                 imgNew.data[i][j] = (sbmp_raw_data) {(u_int8_t) (blue/sumatoria),(u_int8_t) (green/sumatoria),(u_int8_t) (red/sumatoria)};
                 blue=0;
                 red=0;
@@ -280,4 +271,12 @@ void kernel_setup(uint16_t **kern, int16_t ksize) {
         }
         printf("\n");
     }
+}
+uint64_t rdtsc ()
+{
+    printf("HOLAAA");
+    unsigned int lo, hi;
+    __asm__ __volatile__ ("rdtsc" : "=a" (lo), "=d" (hi));
+    return ((uint64_t) hi << 32) | lo;
+
 }

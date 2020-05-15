@@ -23,10 +23,10 @@ uint64_t rdtsc();
 void recvDatosUsuario();
 
 int main() {
-    int fila = 0, columna = 0;
+    //int fila = 0, columna = 0;
     int centro1, centro2;
     uint32_t blue = 0, green = 0, red = 0;
-    uint32_t valorker;
+    //uint32_t valorker;
     sbmp_image imgOld = {0};
     sbmp_image imgNew = {0};
 
@@ -51,8 +51,6 @@ int main() {
         perror("No se pudo crear la imagen ");
         exit(-1);
     }
-//De esta forma tarda 5:24 uso menos variables para los calculos, entonces debo accader a menos posiciones de momoria
-
 
     //Corregir la matriz de kernel que tiene mal valores cuando es impar y pan la ultima liena hace mal, corregir tambien cuando le doy 4000 y 6000 osea los valores maximos
     //PORQUE LE hacia -1 al ancho y alto?? dejar anotado
@@ -64,68 +62,68 @@ int main() {
         int id;
         int nthrds;
         nthrds = omp_get_num_threads();
-        uint32_t aux1;
-        uint32_t aux2;
-        uint32_t aux3;
         id = omp_get_thread_num();
         printf("soy el hilo %i de %i",id,nthrds);
-#pragma omp  for collapse(2) reduction(+:blue) reduction(+:green) reduction(+:red) private(valorker)
+        uint32_t blue1 = 0, green1 = 0, red1 = 0;
+        uint32_t valorker0;
+//#pragma omp  for collapse(2) reduction(+:blue) reduction(+:green) reduction(+:red) private(valorker)
+
+///SOLUCIONAR PORQUE SE SUMAN LOS COLORES Y NO GUARDA UNO UNICO PARA CADA UNO Y VER PORQUE EL OTRO FOR rescribe el circulo
+//tarda 4 min deberia mejorar y ver como hacer con el fila columa del kerner para serelizzar esa parte
+#pragma omp  for collapse(2)
     for (i = 0; i < imgNew.info.image_height - 1; ++i) {
         for (j = 0; j < imgNew.info.image_width - 1; ++j) {
             if ((i <= centro1 * 2 && j <= centro2 * 2) && (pow((i - centro1), 2) + pow((j - centro2), 2) <= pow(radio, 2))) {
-                red = (uint32_t) (imgOld.data[i][j].red * kk + l);
-                blue = (uint32_t) (imgOld.data[i][j].blue * kk + l);
-                green = (uint32_t) (imgOld.data[i][j].green * kk + l);
-                if (blue > 255) {
-                    blue = 255;
+                red1 = (uint32_t) (imgOld.data[i][j].red * kk + l);
+                blue1 = (uint32_t) (imgOld.data[i][j].blue * kk + l);
+                green1 = (uint32_t) (imgOld.data[i][j].green * kk + l);
+                if (blue1 > 255) {
+                    blue1 = 255;
                 }
-                if (red > 255) {
-                    red = 255;
+                if (red1 > 255) {
+                    red1 = 255;
                 }
-                if (green > 255) {
-                    green = 255;
+                if (green1 > 255) {
+                    green1= 255;
                 }
-                imgNew.data[i][j] = (sbmp_raw_data) {(u_int8_t) blue, (u_int8_t) green, (u_int8_t) red};
-            } else {
-#pragma omp critical
-                if (i <= imgNew.info.image_height - (SIZE_K - 1)) {//ESTE IF Creo que no deberoa encerradr todo
+                imgNew.data[i][j] = (sbmp_raw_data) {(u_int8_t) blue1, (u_int8_t) green1, (u_int8_t) red1};
+            }
+        }
+    }
+#pragma omp barrier
+
+#pragma omp  for collapse(2) reduction(+:blue) reduction(+:green) reduction(+:red)
+    for (i = 0; i < imgNew.info.image_height - 1; ++i) {
+        for (j = 0; j < imgNew.info.image_width - 1; ++j) {
+            if ((i <= centro1 * 2 && j <= centro2 * 2) && (pow((i - centro1), 2) + pow((j - centro2), 2) <= pow(radio, 2))) {
+
+            }
+            else {
+                if (i <= imgNew.info.image_height - (SIZE_K)) {
+
                     for (a = i; a < SIZE_K + i; ++a) {
-                        if (j <= imgNew.info.image_width - (SIZE_K - 1)) {//posicion total-(pos kernel-1)
-                            //int id;
-                            // int nthrds;
-                            //id = omp_get_thread_num();
-                            //nthrds = omp_get_num_threads();
-                            // printf("soy el hilo %i",nthrds);
-                            for (b = j; b < j + SIZE_K; ++b) {
-                                valorker = (uint32_t) kernel[fila][columna];
-                                aux1 = (imgOld.data[a][b].blue * valorker);
-                                blue = blue + aux1;
-                                aux2 = imgOld.data[a][b].green * valorker;
-                                green = green + aux2;
-                                aux3 = imgOld.data[a][b].red * valorker;
-                                red = red + aux3;
-                                //printf("soy el hilo %i y tengo valorker%i\n",id,valorker);
-                                #pragma omp atomic
-                                ++columna;
-                            }
-
-
-                            columna = 0;
+                        if (j <= imgNew.info.image_width - (SIZE_K)) {
+                                for (b = j; b < j + SIZE_K; ++b) {
+                                    ///poner todo, en una misma liena,o sea solo 4 operaciones??
+                                    valorker0 = 0;//(uint32_t) kernel[a-i][b-j];
+                                    blue = blue + (imgOld.data[a][b].blue * valorker0);
+                                    green = green + (imgOld.data[a][b].green * valorker0);
+                                    red = red + (imgOld.data[a][b].red * valorker0);
+                                }
                         }
-                        #pragma omp atomic
-                        ++fila;
                     }
-                    fila = 0;
-                    imgNew.data[i][j] = (sbmp_raw_data) {(u_int8_t) (blue / sumatoria), (u_int8_t) (green / sumatoria),
-                                                         (u_int8_t) (red / sumatoria)};
-                    blue = 0;
-                    red = 0;
-                    green = 0;
+                    imgNew.data[i][j] = (sbmp_raw_data) {(u_int8_t) (blue / sumatoria), (u_int8_t) (green / sumatoria),(u_int8_t) (red / sumatoria)};
+                    #pragma omp critical
+                    if((a-i==SIZE_K) && (b-j == SIZE_K)){
+                        blue = 0;
+                        red = 0;
+                        green = 0;
+                    }
                 }
             }
-
         }
-    } }
+    }
+    }
 
     int32_t check2 = sbmp_save_bmp("/home/cristian/Imágenes/testeo.bmp", &imgNew);
     if (SBMP_OK != check2) {
