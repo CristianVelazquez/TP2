@@ -1,21 +1,24 @@
-#include <omp.h>
 #include <stdio.h>
 #include "simple_bmp.h"
 #include <math.h>
-
+#include <time.h>
+#include <omp.h>
 #define TAM 120
-#define NUM_THREADS 6
+
 
 /* Variables globales */
 void kernel_setup(uint16_t **kern, int16_t ksize);
 
 char path1[] = "/home/cristian/Documentos/TP2/base.bmp";
+//char path1[] = "/home/SO2/Alumno26/base.bmp";
+char path2[]="/home/cristian/Imágenes/testeo.bmp";
+//char path2[]="/home/SO2/Alumno26/TP2CRISTIAN/bin/testeo.bmp";
+
 uint16_t sumatoria = 0;
 uint32_t alto = 0, ancho = 0;//0 valor por defecto
 int kk = 1, l = 0;
 int16_t SIZE_K = 0;
 u_int32_t radio = 0;
-
 
 /* Declaración de funciones */
 uint64_t rdtsc();
@@ -26,15 +29,13 @@ int main() {
     //int fila = 0, columna = 0;
     int centro1, centro2;
     uint32_t blue = 0, green = 0, red = 0;
-    //uint32_t valorker;
+    uint32_t valorker;
     sbmp_image imgOld = {0};
     sbmp_image imgNew = {0};
 
     recvDatosUsuario();
     centro1 = (int) alto / 2;
     centro2 = (int) ancho / 2;
-
-    omp_set_num_threads(NUM_THREADS);
 
     rdtsc();
     uint16_t **kernel = calloc((unsigned long) SIZE_K, sizeof(int *));
@@ -52,80 +53,56 @@ int main() {
         exit(-1);
     }
 
-    //Corregir la matriz de kernel que tiene mal valores cuando es impar y pan la ultima liena hace mal, corregir tambien cuando le doy 4000 y 6000 osea los valores maximos
-    //PORQUE LE hacia -1 al ancho y alto?? dejar anotado
-    //falta la parte de assembler
     int i, j;
     int a, b;
-#pragma omp parallel
-    {
-        int id;
-        int nthrds;
-        nthrds = omp_get_num_threads();
-        id = omp_get_thread_num();
-        printf("soy el hilo %i de %i",id,nthrds);
-        uint32_t blue1 = 0, green1 = 0, red1 = 0;
-        uint32_t valorker0;
-//#pragma omp  for collapse(2) reduction(+:blue) reduction(+:green) reduction(+:red) private(valorker)
 
-///SOLUCIONAR PORQUE SE SUMAN LOS COLORES Y NO GUARDA UNO UNICO PARA CADA UNO Y VER PORQUE EL OTRO FOR rescribe el circulo
-//tarda 4 min deberia mejorar y ver como hacer con el fila columa del kerner para serelizzar esa parte
-#pragma omp  for collapse(2)
-    for (i = 0; i < imgNew.info.image_height - 1; ++i) {
-        for (j = 0; j < imgNew.info.image_width - 1; ++j) {
-            if ((i <= centro1 * 2 && j <= centro2 * 2) && (pow((i - centro1), 2) + pow((j - centro2), 2) <= pow(radio, 2))) {
-                red1 = (uint32_t) (imgOld.data[i][j].red * kk + l);
-                blue1 = (uint32_t) (imgOld.data[i][j].blue * kk + l);
-                green1 = (uint32_t) (imgOld.data[i][j].green * kk + l);
-                if (blue1 > 255) {
-                    blue1 = 255;
+    uint32_t blue1 = 0, green1 = 0, red1 = 0;
+    clock_t cl = clock();
+    #pragma omp parallel for collapse(2) reduction(+:blue1) reduction(+:green1) reduction(+:red1)
+    for ( i = 0; i < imgNew.info.image_height - 1; ++i) {
+        for ( j = 0; j < imgNew.info.image_width - 1; ++j) {
+            if((i<=centro1*2 && j<=centro2*2) && (pow(( i - centro1), 2) + pow((j - centro2), 2) <= pow(radio, 2))){
+                red1= (uint32_t) (imgOld.data[i][j].red * kk + l);
+                blue1= (uint32_t) (imgOld.data[i][j].blue * kk + l);
+                green1= (uint32_t) (imgOld.data[i][j].green * kk + l);
+                if(blue1>255){
+                    blue1=255;
                 }
-                if (red1 > 255) {
-                    red1 = 255;
+                if(red1>255){
+                    red1=255;
                 }
-                if (green1 > 255) {
-                    green1= 255;
+                if(green1>255){
+                    green1=255;
                 }
-                imgNew.data[i][j] = (sbmp_raw_data) {(u_int8_t) blue1, (u_int8_t) green1, (u_int8_t) red1};
+                imgNew.data[i][j] = (sbmp_raw_data) {(u_int8_t) blue1,(u_int8_t) green1,(u_int8_t) red1};
             }
-        }
-    }
-#pragma omp barrier
-
-#pragma omp  for collapse(2) reduction(+:blue) reduction(+:green) reduction(+:red)
-    for (i = 0; i < imgNew.info.image_height - 1; ++i) {
-        for (j = 0; j < imgNew.info.image_width - 1; ++j) {
-            if ((i <= centro1 * 2 && j <= centro2 * 2) && (pow((i - centro1), 2) + pow((j - centro2), 2) <= pow(radio, 2))) {
-
-            }
-            else {
+           else{
                 if (i <= imgNew.info.image_height - (SIZE_K)) {
+                    if (j <= imgNew.info.image_width - (SIZE_K)) {
 
+#pragma omp parallel for collapse(2) reduction(+:blue) reduction(+:green) reduction(+:red) private(valorker)
                     for (a = i; a < SIZE_K + i; ++a) {
-                        if (j <= imgNew.info.image_width - (SIZE_K)) {
-                                for (b = j; b < j + SIZE_K; ++b) {
-                                    ///poner todo, en una misma liena,o sea solo 4 operaciones??
-                                    valorker0 = 0;//(uint32_t) kernel[a-i][b-j];
-                                    blue = blue + (imgOld.data[a][b].blue * valorker0);
-                                    green = green + (imgOld.data[a][b].green * valorker0);
-                                    red = red + (imgOld.data[a][b].red * valorker0);
-                                }
+                        for (b = j; b < j + SIZE_K; ++b) {
+
+                                valorker= (uint8_t) kernel[a-i][b-j];
+                                blue=  (blue+(uint32_t)(imgOld.data[a][b].blue * valorker));
+                                green= (green+(uint32_t) (imgOld.data[a][b].green * valorker));
+                                red= (red+(uint32_t)(imgOld.data[a][b].red * valorker));
                         }
                     }
-                    imgNew.data[i][j] = (sbmp_raw_data) {(u_int8_t) (blue / sumatoria), (u_int8_t) (green / sumatoria),(u_int8_t) (red / sumatoria)};
-                    #pragma omp critical
-                    if((a-i==SIZE_K) && (b-j == SIZE_K)){
-                        blue = 0;
-                        red = 0;
-                        green = 0;
-                    }
+                    imgNew.data[i][j] = (sbmp_raw_data) {(u_int8_t) (blue/sumatoria),(u_int8_t) (green/sumatoria),(u_int8_t) (red/sumatoria)};
+                    blue=0;
+                    red=0;
+                    green=0;
+                }
                 }
             }
+
         }
     }
-    }
 
-    int32_t check2 = sbmp_save_bmp("/home/cristian/Imágenes/testeo.bmp", &imgNew);
+printf("%ld",(clock()-cl)*1000/CLOCKS_PER_SEC);
+    int32_t check2 = sbmp_save_bmp(path2, &imgNew);
     if (SBMP_OK != check2) {
         perror("No se puedo guardar la imagen");
         exit(-1);
@@ -185,8 +162,14 @@ enum sbmp_codes sbmp_load_bmp(const char *filename, sbmp_image *image) {
         return SBMP_ERROR_FILE;
     }
 
-    fread(&image->type, sizeof(image->type), 1, fd);
-    fread(&image->info, sizeof(image->info), 1, fd);
+    size_t result1=fread(&image->type, sizeof(image->type), 1, fd);
+    if (result1 > 0){
+
+    }
+    size_t result2= fread(&image->info, sizeof(image->info), 1, fd);
+    if (result2 > 0){
+
+    }
     image->data = calloc((size_t) image->info.image_height, sizeof(sbmp_raw_data *));
     if (image->data == NULL) {
         fprintf(stderr, "Error: %s\n", strerror(errno));
@@ -195,9 +178,10 @@ enum sbmp_codes sbmp_load_bmp(const char *filename, sbmp_image *image) {
 
     for (int32_t i = image->info.image_height - 1; i >= 0; i--) {
         image->data[i] = calloc((size_t) image->info.image_width, sizeof(sbmp_raw_data));
-        fread(image->data[i],
-              sizeof(sbmp_raw_data),
-              (uint32_t) image->info.image_width, fd);
+        size_t result=fread(image->data[i], sizeof(sbmp_raw_data), (uint32_t) image->info.image_width, fd);
+        if (result > 0){
+
+        }
     }
     fclose(fd);
     return SBMP_OK;
@@ -278,12 +262,6 @@ uint64_t rdtsc() {
 
 }
 
-/**
- * Usado para concatenar el usuario y pass ingreasa por el usuario
- * @param usuario
- * @param password
- * @return puntero de chars con el resultado
- */
 void recvDatosUsuario() {
     char buffer[TAM];
     char *token;

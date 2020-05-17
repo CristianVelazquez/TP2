@@ -1,7 +1,7 @@
-#include <omp.h>
 #include <stdio.h>
 #include "simple_bmp.h"
 #include <math.h>
+#include <time.h>
 #define TAM 120
 
 void kernel_setup(uint16_t **kern, int16_t ksize);
@@ -83,13 +83,11 @@ int main() {
         perror("No se pudo crear la imagen ");
         exit(-1);
     }
-//De esta forma tarda 2:57 al corregir un error y al usar una variable menos,ya no incremento dos variables ni seteo en 0 solo hago un calculo para buscar el
-//valor de la matriz del kernel
+
     int centro1= (int)height/2;
     int centro2=(int)width/2;
 
-    //Corregir la matriz de kernel que tiene mal valores cuando es impar y pan la ultima liena hace mal, corregir tambien cuando le doy 4000 y 6000 osea los valores maximos
-    //falta la parte de assembler
+    clock_t cl = clock();
     for (int i = 0; i < imgNew.info.image_height - 1; ++i) {
         for (int j = 0; j < imgNew.info.image_width - 1; ++j) {
             if((i<=centro1*2 && j<=centro2*2) && (pow(( i - centro1), 2) + pow((j - centro2), 2) <= pow(radio, 2))){
@@ -108,6 +106,7 @@ int main() {
                 imgNew.data[i][j] = (sbmp_raw_data) {(u_int8_t) blue,(u_int8_t) green,(u_int8_t) red};
             }
             else{
+
             if (i <= imgNew.info.image_height - (SIZE_K)) {
                 for (int a = i; a < SIZE_K + i; ++a) {
                     if (j <= imgNew.info.image_width - (SIZE_K)) {
@@ -127,7 +126,7 @@ int main() {
 
         }
     }
-
+    printf("%ld",(clock()-cl)*1000/CLOCKS_PER_SEC);
     int32_t check2= sbmp_save_bmp("/home/cristian/Imágenes/testeo.bmp", &imgNew);
     if (SBMP_OK != check2) {
         perror("No se puedo guardar la imagen");
@@ -188,8 +187,14 @@ enum sbmp_codes sbmp_load_bmp(const char *filename, sbmp_image *image) {
         return SBMP_ERROR_FILE;
     }
 
-    fread(&image->type, sizeof(image->type), 1, fd);
-    fread(&image->info, sizeof(image->info), 1, fd);
+    size_t result1= fread(&image->type, sizeof(image->type), 1, fd);
+    if (result1 > 0){
+
+    }
+    size_t result2= fread(&image->info, sizeof(image->info), 1, fd);
+    if (result2 > 0){
+
+    }
     image->data = calloc((size_t) image->info.image_height, sizeof(sbmp_raw_data *));
     if (image->data == NULL) {
         fprintf(stderr, "Error: %s\n", strerror(errno));
@@ -198,9 +203,10 @@ enum sbmp_codes sbmp_load_bmp(const char *filename, sbmp_image *image) {
 
     for (int32_t i = image->info.image_height - 1; i >= 0; i--) {
         image->data[i] = calloc((size_t) image->info.image_width, sizeof(sbmp_raw_data));
-        fread(image->data[i],
-              sizeof(sbmp_raw_data),
-              (uint32_t) image->info.image_width, fd);
+        size_t result=fread(image->data[i],sizeof(sbmp_raw_data),(uint32_t) image->info.image_width, fd);
+        if (result > 0){
+
+        }
     }
     fclose(fd);
     return SBMP_OK;
