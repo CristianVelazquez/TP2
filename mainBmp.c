@@ -6,6 +6,7 @@
 
 void kernel_setup(uint16_t **kern, int16_t ksize);
 uint64_t rdtsc ();
+void convo(sbmp_image *imgNew,sbmp_image *imgOld,int centro1, int centro2,u_int32_t radio,int kk, int l,int16_t SIZE_K, uint16_t **kernel);
 char path1[] = "/home/cristian/Documentos/TP2/base.bmp";
 
 uint16_t sumatoria=0;
@@ -17,10 +18,9 @@ int main() {
     const char ident[]=",";
     int kk=1,l=0,num=0;
     uint32_t height=0, width=0;//0 valor por defecto
-    uint32_t blue=0,green=0,red=0;
-    uint8_t valorker;
+    //uint32_t blue=0,green=0,red=0;
+    //uint8_t valorker;
     u_int32_t radio=0;
-
     printf("Ingrese la altura,ancho y radio para la imagen de salida:\n");
     printf("ejemplo: 500,1000,600>");
     if (fgets(buffer, TAM - 1, stdin) == 0) {
@@ -65,7 +65,7 @@ int main() {
         token = strtok(NULL, ident);
         num++;
     }
-    rdtsc ();
+
     uint16_t **kernel = calloc((unsigned long) SIZE_K, sizeof(int *));
     for (int k = 0; k < SIZE_K; k++)
         kernel[k] = calloc((unsigned long) SIZE_K, sizeof(uint16_t));
@@ -76,7 +76,7 @@ int main() {
     if (sbmp_load_bmp(path1, &imgOld) != SBMP_OK) {
         exit(-1);
     }
-    
+
     sbmp_image imgNew = {0};
     int32_t check = sbmp_initialize_bmp(&imgNew, (uint32_t) height,(uint32_t) width);
     if (SBMP_OK != check) {
@@ -86,47 +86,13 @@ int main() {
 
     int centro1= (int)height/2;
     int centro2=(int)width/2;
+    uint64_t cicloIni=rdtsc ();
+    float first_clock = (float) clock();
+    convo(&imgNew,&imgOld,centro1,centro2,radio,kk,l,SIZE_K,kernel);
+    uint64_t cicloFin=rdtsc();
 
-    clock_t cl = clock();
-    for (int i = 0; i < imgNew.info.image_height - 1; ++i) {
-        for (int j = 0; j < imgNew.info.image_width - 1; ++j) {
-            if((i<=centro1*2 && j<=centro2*2) && (pow(( i - centro1), 2) + pow((j - centro2), 2) <= pow(radio, 2))){
-                red= (uint32_t) (imgOld.data[i][j].red * kk + l);
-                blue= (uint32_t) (imgOld.data[i][j].blue * kk + l);
-                green= (uint32_t) (imgOld.data[i][j].green * kk + l);
-                if(blue>255){
-                    blue=255;
-                }
-                if(red>255){
-                    red=255;
-                }
-                if(green>255){
-                    green=255;
-                }
-                imgNew.data[i][j] = (sbmp_raw_data) {(u_int8_t) blue,(u_int8_t) green,(u_int8_t) red};
-            }
-            else{
-
-            if (i <= imgNew.info.image_height - (SIZE_K)) {
-                for (int a = i; a < SIZE_K + i; ++a) {
-                    if (j <= imgNew.info.image_width - (SIZE_K)) {
-                        for (int b = j; b < j + SIZE_K; ++b) {
-                            valorker= (uint8_t) kernel[a-i][b-j];
-                            blue=  (blue+(uint32_t)(imgOld.data[a][b].blue * valorker));
-                            green= (green+(uint32_t) (imgOld.data[a][b].green * valorker));
-                            red= (red+(uint32_t)(imgOld.data[a][b].red * valorker));
-                        }
-                    }
-                }
-                imgNew.data[i][j] = (sbmp_raw_data) {(u_int8_t) (blue/sumatoria),(u_int8_t) (green/sumatoria),(u_int8_t) (red/sumatoria)};
-                blue=0;
-                red=0;
-                green=0;
-            }}
-
-        }
-    }
-    printf("%ld",(clock()-cl)*1000/CLOCKS_PER_SEC);
+    printf("Ciclos %ld \n",cicloFin-cicloIni);
+    printf("Tiempo: %f segundos\n", ((float)clock()-first_clock)/CLOCKS_PER_SEC);
     int32_t check2= sbmp_save_bmp("/home/cristian/Imágenes/testeo.bmp", &imgNew);
     if (SBMP_OK != check2) {
         perror("No se puedo guardar la imagen");
@@ -280,9 +246,50 @@ void kernel_setup(uint16_t **kern, int16_t ksize) {
 }
 uint64_t rdtsc ()
 {
-    printf("HOLAAA");
     unsigned int lo, hi;
     __asm__ __volatile__ ("rdtsc" : "=a" (lo), "=d" (hi));
     return ((uint64_t) hi << 32) | lo;
 
+}
+void convo(sbmp_image *imgNew,sbmp_image *imgOld,int centro1, int centro2,u_int32_t radio,int kk, int l,int16_t SIZE_K, uint16_t **kernel){
+    uint32_t blue=0,green=0,red=0;
+    uint8_t valorker;
+    for (int i = 0; i < imgNew->info.image_height - 1; ++i) {
+        for (int j = 0; j < imgNew->info.image_width - 1; ++j) {
+            if((i<=centro1*2 && j<=centro2*2) && (pow(( i - centro1), 2) + pow((j - centro2), 2) <= pow(radio, 2))){
+                red= (uint32_t) (imgOld->data[i][j].red * kk + l);
+                blue= (uint32_t) (imgOld->data[i][j].blue * kk + l);
+                green= (uint32_t) (imgOld->data[i][j].green * kk + l);
+                if(blue>255){
+                    blue=255;
+                }
+                if(red>255){
+                    red=255;
+                }
+                if(green>255){
+                    green=255;
+                }
+                imgNew->data[i][j] = (sbmp_raw_data) {(u_int8_t) blue,(u_int8_t) green,(u_int8_t) red};
+            }
+            else{
+
+                if (i <= imgNew->info.image_height - (SIZE_K)) {
+                    for (int a = i; a < SIZE_K + i; ++a) {
+                        if (j <= imgNew->info.image_width - (SIZE_K)) {
+                            for (int b = j; b < j + SIZE_K; ++b) {
+                                valorker= (uint8_t) kernel[a-i][b-j];
+                                blue=  (blue+(uint32_t)(imgOld->data[a][b].blue * valorker));
+                                green= (green+(uint32_t) (imgOld->data[a][b].green * valorker));
+                                red= (red+(uint32_t)(imgOld->data[a][b].red * valorker));
+                            }
+                        }
+                    }
+                    imgNew->data[i][j] = (sbmp_raw_data) {(u_int8_t) (blue/sumatoria),(u_int8_t) (green/sumatoria),(u_int8_t) (red/sumatoria)};
+                    blue=0;
+                    red=0;
+                    green=0;
+                }}
+
+        }
+    }
 }
