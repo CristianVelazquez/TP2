@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include "simple_bmp.h"
 #include <math.h>
-#include <time.h>
 #include <omp.h>
 #define TAM 120
 
@@ -9,10 +8,10 @@
 /* Variables globales */
 void kernel_setup(uint16_t **kern, int16_t ksize);
 
-char path1[] = "/home/cristian/Documentos/TP2/base.bmp";
-//char path1[] = "/home/SO2/Alumno26/base.bmp";
-char path2[]="/home/cristian/Imágenes/testeo.bmp";
-//char path2[]="/home/SO2/Alumno26/TP2CRISTIAN/bin/testeo.bmp";
+//char path1[] = "/home/cristian/Documentos/TP2/base.bmp";
+char path1[] = "/home/SO2/Alumno26/base.bmp";
+//char path2[]="/home/cristian/Imágenes/testeo.bmp";
+char path2[]="/home/SO2/Alumno26/TP2CRISTIAN/bin/testeo.bmp";
 
 uint16_t sumatoria = 0;
 uint32_t alto = 0, ancho = 0;//0 valor por defecto
@@ -26,18 +25,19 @@ uint64_t rdtsc();
 void recvDatosUsuario();
 
 int main() {
-    //int fila = 0, columna = 0;
     int centro1, centro2;
+    int i, j,a , b, hilos;
     uint32_t blue = 0, green = 0, red = 0;
     uint32_t valorker;
     sbmp_image imgOld = {0};
     sbmp_image imgNew = {0};
+    double start,end;
 
     recvDatosUsuario();
+
     centro1 = (int) alto / 2;
     centro2 = (int) ancho / 2;
 
-    rdtsc();
     uint16_t **kernel = calloc((unsigned long) SIZE_K, sizeof(int *));
     for (int k = 0; k < SIZE_K; k++)
         kernel[k] = calloc((unsigned long) SIZE_K, sizeof(uint16_t));
@@ -53,11 +53,11 @@ int main() {
         exit(-1);
     }
 
-    int i, j;
-    int a, b;
-
     uint32_t blue1 = 0, green1 = 0, red1 = 0;
-    clock_t cl = clock();
+for(int inc =2;inc<8;inc++) {
+    hilos= (int)pow(2,inc);
+    omp_set_num_threads(hilos);
+    start=omp_get_wtime();
     #pragma omp parallel for collapse(2) reduction(+:blue1) reduction(+:green1) reduction(+:red1)
     for ( i = 0; i < imgNew.info.image_height - 1; ++i) {
         for ( j = 0; j < imgNew.info.image_width - 1; ++j) {
@@ -100,8 +100,10 @@ int main() {
 
         }
     }
+    end=omp_get_wtime();
+    printf("Tiempo: %f segundos para %i threads\n", end-start, hilos);
+}
 
-printf("%ld",(clock()-cl)*1000/CLOCKS_PER_SEC);
     int32_t check2 = sbmp_save_bmp(path2, &imgNew);
     if (SBMP_OK != check2) {
         perror("No se puedo guardar la imagen");
@@ -255,7 +257,6 @@ void kernel_setup(uint16_t **kern, int16_t ksize) {
 }
 
 uint64_t rdtsc() {
-    printf("HOLAAA");
     unsigned int lo, hi;
     __asm__ __volatile__ ("rdtsc" : "=a" (lo), "=d" (hi));
     return ((uint64_t) hi << 32) | lo;
